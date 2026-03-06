@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="jakarta.faces.passthrough">
+    <h:head>
+        <title>AI-Powered Cargo Query</title>
+        <link rel="stylesheet" type="text/css" href="#{request.contextPath}/resources/css/app.css"/>
+        <style>
+            .ai-rag-container {
+                max-width: 900px;
+                margin: 2rem auto;
+                padding: 2rem;
+                background: #f8f9fa;
+                border-radius: 8px;
+            }
+            
+            .ai-rag-header {
+                margin-bottom: 2rem;
+                text-align: center;
+            }
+            
+            .ai-rag-header h1 {
+                color: #2c3e50;
+                margin-bottom: 0.5rem;
+            }
+            
+            .ai-rag-header p {
+                color: #7f8c8d;
+            }
+            
+            .query-section {
+                background: white;
+                padding: 1.5rem;
+                border-radius: 8px;
+                margin-bottom: 2rem;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .query-input {
+                width: 100%;
+                padding: 0.75rem;
+                border: 2px solid #e0e0e0;
+                border-radius: 4px;
+                font-size: 1rem;
+                margin-bottom: 1rem;
+            }
+            
+            .query-input:focus {
+                outline: none;
+                border-color: #3498db;
+            }
+            
+            .button-group {
+                display: flex;
+                gap: 1rem;
+            }
+            
+            .btn {
+                padding: 0.75rem 1.5rem;
+                border: none;
+                border-radius: 4px;
+                font-size: 1rem;
+                cursor: pointer;
+                transition: background-color 0.3s;
+            }
+            
+            .btn-primary {
+                background-color: #3498db;
+                color: white;
+            }
+            
+            .btn-primary:hover {
+                background-color: #2980b9;
+            }
+            
+            .btn-secondary {
+                background-color: #95a5a6;
+                color: white;
+            }
+            
+            .btn-secondary:hover {
+                background-color: #7f8c8d;
+            }
+            
+            .response-section {
+                background: white;
+                padding: 1.5rem;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .response-answer {
+                color: #2c3e50;
+                line-height: 1.6;
+                margin-bottom: 1.5rem;
+                white-space: pre-wrap;
+            }
+            
+            .response-sources {
+                border-top: 1px solid #e0e0e0;
+                padding-top: 1rem;
+            }
+            
+            .response-sources h3 {
+                color: #7f8c8d;
+                font-size: 0.9rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .source-item {
+                background: #ecf0f1;
+                padding: 0.5rem;
+                margin: 0.25rem 0;
+                border-radius: 4px;
+                font-size: 0.9rem;
+            }
+            
+            .loading-indicator {
+                text-align: center;
+                padding: 2rem;
+                color: #7f8c8d;
+            }
+            
+            .service-unavailable {
+                background: #fff3cd;
+                border: 1px solid #ffc107;
+                padding: 1rem;
+                border-radius: 4px;
+                color: #856404;
+                margin-bottom: 1rem;
+            }
+        </style>
+    </h:head>
+    <h:body>
+        <div class="ai-rag-container">
+            <div class="ai-rag-header">
+                <h1>🤖 AI-Powered Cargo Query</h1>
+                <p>Ask questions about historical cargo shipments in natural language</p>
+            </div>
+            
+            <h:panelGroup rendered="#{!aiRAGBean.serviceAvailable}">
+                <div class="service-unavailable">
+                    ⚠️ AI service is currently unavailable. Please configure Azure OpenAI and Qdrant.
+                </div>
+            </h:panelGroup>
+            
+            <h:form id="ragForm">
+                <div class="query-section">
+                    <h:messages globalOnly="true" styleClass="messages"/>
+                    
+                    <h:inputTextarea 
+                        value="#{aiRAGBean.query}"
+                        styleClass="query-input"
+                        rows="3"
+                        p:placeholder="Example: What cargo shipments went from Hong Kong to Stockholm?"
+                        disabled="#{!aiRAGBean.serviceAvailable}"/>
+                    
+                    <div class="button-group">
+                        <h:commandButton 
+                            value="Ask AI"
+                            action="#{aiRAGBean.submitQuery}"
+                            styleClass="btn btn-primary"
+                            disabled="#{!aiRAGBean.serviceAvailable or aiRAGBean.loading}">
+                            <f:ajax execute="@form" render="@form"/>
+                        </h:commandButton>
+                        
+                        <h:commandButton 
+                            value="Clear"
+                            action="#{aiRAGBean.clear}"
+                            styleClass="btn btn-secondary"
+                            immediate="true">
+                            <f:ajax execute="@this" render="@form"/>
+                        </h:commandButton>
+                    </div>
+                </div>
+                
+                <h:panelGroup rendered="#{aiRAGBean.loading}">
+                    <div class="loading-indicator">
+                        <p>🔍 Searching historical data and generating answer...</p>
+                    </div>
+                </h:panelGroup>
+                
+                <h:panelGroup rendered="#{aiRAGBean.responseAvailable and !aiRAGBean.loading}">
+                    <div class="response-section">
+                        <div class="response-answer">
+                            <h:outputText value="#{aiRAGBean.response.answer}"/>
+                        </div>
+                        
+                        <h:panelGroup rendered="#{not empty aiRAGBean.response.sources}">
+                            <div class="response-sources">
+                                <h3>📄 Sources (#{aiRAGBean.response.documentsRetrieved} documents):</h3>
+                                <ui:repeat value="#{aiRAGBean.response.sources}" var="source">
+                                    <div class="source-item">
+                                        #{source}
+                                    </div>
+                                </ui:repeat>
+                            </div>
+                        </h:panelGroup>
+                    </div>
+                </h:panelGroup>
+            </h:form>
+        </div>
+    </h:body>
+</html>
