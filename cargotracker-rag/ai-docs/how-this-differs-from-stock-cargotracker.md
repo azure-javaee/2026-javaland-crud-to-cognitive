@@ -4,8 +4,6 @@
 
 Brian took the Eclipse Cargo Tracker — a standard Jakarta EE 10 CRUD application — and added a **Retrieval-Augmented Generation (RAG)** layer that lets users ask natural language questions about historical cargo shipments. The AI features were added as a **purely additive layer**: zero modifications to any existing domain entity, repository, or service class. Every AI artifact lives under an `ai-` prefixed package and can be cleanly removed.
 
-The architecture docs and `.env.example` show feature toggles for the others, but no code exists.
-
 ---
 
 ## What Was Added (File Inventory)
@@ -16,10 +14,10 @@ The architecture docs and `.env.example` show feature toggles for the others, bu
 |------|---------|------|
 | `AiAzureOpenAIConfig.java` | `ai.aiconfig` | CDI `@Produces` for `ChatLanguageModel` and `EmbeddingModel` via Azure OpenAI |
 | `AiQdrantConfig.java` | `ai.aiconfig` | CDI `@Produces` for `EmbeddingStore<TextSegment>` backed by Qdrant |
-| `AiHistoricalIndexer.java` | `ai.aiservices.airag` | Reads `Cargo` + `HandlingEvent` entities from JPA, builds text documents, embeds via Azure OpenAI, stores in Qdrant |
-| `AiRAGQueryService.java` | `ai.aiservices.airag` | Embeds user query → semantic search in Qdrant → augments prompt with context → calls GPT-4o → returns answer with citations |
-| `AiRAGResponse.java` | `ai.aiservices.airag` | Simple response DTO (answer, sources, query, documentsRetrieved) |
 | `AiStartupInitializer.java` | `interfaces.ai` | CDI observer that eagerly initializes AI components on app startup |
+| `AiHistoricalIndexer.java` | `ai.aiservices.airag` | Reads `Cargo` + `HandlingEvent` entities from JPA, builds text documents, embeds via Azure OpenAI, stores in Qdrant |
+| `AiRAGResponse.java` | `ai.aiservices.airag` | Simple response DTO (answer, sources, query, documentsRetrieved) |
+| `AiRAGQueryService.java` | `ai.aiservices.airag` | Embeds user query → semantic search in Qdrant → augments prompt with context → calls GPT-4o → returns answer with citations |
 | `AiRAGResource.java` | `interfaces.rest` | JAX-RS REST endpoint: `POST /rest/ai/rag/query`, `GET /rest/ai/rag/status`, `POST /rest/ai/rag/reindex` |
 | `AiRAGBean.java` | `interfaces.backing` | JSF backing bean for the `ai-rag.xhtml` page |
 
