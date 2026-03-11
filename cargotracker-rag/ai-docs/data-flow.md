@@ -12,84 +12,84 @@
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                         Open Liberty (Java 21)                           │
 │                                                                          │
-│  ┌────────────────┐     ┌──────────────────────────────────────────────┐ │
-│  │ AiRAGResource  │────▶│       AiHistoricalIndexer.reindex()          │ │
-│  │ (JAX-RS)       │     │                                              │ │
-│  └────────────────┘     │  STEP 1: em.createNamedQuery("Cargo.findAll")│ │
-│                         │          em.createQuery("SELECT e FROM       │ │
-│                         │                         HandlingEvent e")    │ │
-│                         │          │                                   │ │
-│                         │          │ JPQL queries                      │ │
-│                         │          ▼                                   │ │
-│                         │  ┌─────────────────────┐                     │ │
-│                         │  │ EntityManager (JPA) │                     │ │
-│                         │  └──────────┬──────────┘                     │ │
-│                         │             │                                │ │
-│                         │             │ SQL to H2 ─────────────────────│─┐
-│                         │             │                                │ │ │
-│                         │             │ ◄── C Cargo + H Handling ──────│─┘
-│                         │             │     Java objects               │ │
-│                         │             ▼                                │ │
-│                         │  STEP 2: For each entity, build a            │ │
-│                         │          plain-text string:                  │ │
-│                         │                                              │ │
-│                         │    buildCargoDocument(cargo) ──▶             │ │
-│                         │      "Cargo Tracking ID: ABC123,             │ │
-│                         │       Origin: Hong Kong,                     │ │
-│                         │       Destination: Helsinki..."              │ │
-│                         │                                              │ │
-│                         │    buildHandlingEventDocument(event) ──▶     │ │
-│                         │      "Handling Event for Cargo: MNO456,      │ │
-│                         │       Event Type: CUSTOMS,                   │ │
-│                         │       Location: Dallas..."                   │ │
-│                         │                                              │ │
-│                         │    (These are NOT files — just Strings       │ │
-│                         │     constructed from entity fields.)         │ │
-│                         │                                              │ │
-│                         │  STEP 3: Send each of the N text strings ────│─┐
-│                         │          to Azure for embedding              │ │ │
-│                         │                                              │ │ │
-│                         │          ◄── receive 1,536-float vector ─────│─┘
-│                         │                                              │ │
-│                         │  STEP 4: Store vector + original text ───────│─┐
-│                         │          in Qdrant                           │ │ │
-│                         │                                              │ │ │
-│                         └──────────────────────────────────────────────┘ │ │
+│  ┌────────────────┐      ┌─────────────────────────────────────────────┐ │
+│  │ AiRAGResource  │─────▶│       AiHistoricalIndexer.reindex()         │ │
+│  │ (JAX-RS)       │      │                                             │ │
+│  └────────────────┘      │ STEP 1: em.createNamedQuery("Cargo.findAll")│ │
+│                          │          em.createQuery("SELECT e FROM      │ │
+│                          │                         HandlingEvent e")   │ │
+│                          │          │                                  │ │
+│                          │          │ JPQL queries                     │ │
+│                          │          ▼                                  │ │
+│                          │  ┌─────────────────────┐                    │ │
+│                          │  │ EntityManager (JPA) │                    │ │
+│                          │  └──────────┬──────────┘                    │ │
+│                          │             │                               │ │
+│                          │             │ SQL to H2 ──────────────────────│─┐
+│                          │             │                               │ │ │
+│                          │             │ ◄── C Cargo + H Handling ───────│─┘
+│                          │             │     Java objects              │ │
+│                          │             ▼                               │ │
+│                          │  STEP 2: For each entity, build a           │ │
+│                          │          plain-text string:                 │ │
+│                          │                                             │ │
+│                          │    buildCargoDocument(cargo) ──▶            │ │
+│                          │      "Cargo Tracking ID: ABC123,            │ │
+│                          │       Origin: Hong Kong,                    │ │
+│                          │       Destination: Helsinki..."             │ │
+│                          │                                             │ │
+│                          │    buildHandlingEventDocument(event) ──▶    │ │
+│                          │      "Handling Event for Cargo: MNO456,     │ │
+│                          │       Event Type: CUSTOMS,                  │ │
+│                          │       Location: Dallas..."                  │ │
+│                          │                                             │ │
+│                          │    (These are NOT files — just Strings      │ │
+│                          │     constructed from entity fields.)        │ │
+│                          │                                             │ │
+│                          │  STEP 3: Send each of the N text strings ─────│─┐
+│                          │          to Azure for embedding             │ │ │
+│                          │                                             │ │ │
+│                          │          ◄── receive 1,536-float vector ──────│─┘
+│                          │                                             │ │
+│                          │  STEP 4: Store vector + original text ────────│─┐
+│                          │          in Qdrant                          │ │ │
+│                          │                                             │ │ │
+│                          └─────────────────────────────────────────────┘ │ │
 │                                                                          │ │
 └──────────────────────────────────────────────────────────────────────────┘ │
-                                                                       │ │ │
-          ┌───────────────────────────────────────────────────────────┘ │ │
-          │                                                             │ │
-          ▼                                                             │ │
-┌─────────────────────┐                                                 │ │
-│    H2 Database      │                                                 │ │
-│   (in-memory)       │                                                 │ │
-│                     │                                                 │ │
-│  Cargo table:       │                                                 │ │
-│    C rows           │                                                 │ │
-│  HandlingEvent tbl: │                                                 │ │
-│    H rows           │                                                 │ │
-└─────────────────────┘                                                 │ │
-                                                                        │ │
-          ┌─────────────────────────────────────────────────────────────┘ │
-          │                                                               │
-          ▼                                                               │
-┌───────────────────────────────────┐                                     │
-│      Azure OpenAI Service         │                                     │
-│   (text-embedding-3-small)        │                                     │
-│                                   │                                     │
-│  Called N times (once per text):  │                                     │
-│                                   │                                     │
-│  Input:  "Cargo Tracking ID:      │                                     │
-│           ABC123, Origin: Hong    │                                     │
-│           Kong, Destination:      │                                     │
-│           Helsinki..."            │                                     │
-│                                   │                                     │
-│  Output: [0.023, -0.117, 0.842,   │                                     │
-│           ... 1,536 floats]       │                                     │
-└───────────────────────────────────┘                                     │
-                                                                          │
-          ┌───────────────────────────────────────────────────────────────┘
+                                                                         │ │ │
+          ┌──────────────────────────────────────────────────────────────┘ │ │
+          │                                                                │ │
+          ▼                                                                │ │
+┌─────────────────────┐                                                    │ │
+│    H2 Database      │                                                    │ │
+│   (in-memory)       │                                                    │ │
+│                     │                                                    │ │
+│  Cargo table:       │                                                    │ │
+│    C rows           │                                                    │ │
+│  HandlingEvent tbl: │                                                    │ │
+│    H rows           │                                                    │ │
+└─────────────────────┘                                                    │ │
+                                                                           │ │
+          ┌────────────────────────────────────────────────────────────────┘ │
+          │                                                                  │
+          ▼                                                                  │
+┌───────────────────────────────────┐                                        │
+│      Azure OpenAI Service         │                                        │
+│   (text-embedding-3-small)        │                                        │
+│                                   │                                        │
+│  Called N times (once per text):  │                                        │
+│                                   │                                        │
+│  Input:  "Cargo Tracking ID:      │                                        │
+│           ABC123, Origin: Hong    │                                        │
+│           Kong, Destination:      │                                        │
+│           Helsinki..."            │                                        │
+│                                   │                                        │
+│  Output: [0.023, -0.117, 0.842,   │                                        │
+│           ... 1,536 floats]       │                                        │
+└───────────────────────────────────┘                                        │
+                                                                             │
+          ┌──────────────────────────────────────────────────────────────────┘
           │
           ▼
 ┌──────────────────────────────────┐
@@ -132,11 +132,11 @@ Result: N points stored (one per cargo + one per handling event)
        │ {"query": "Has any cargo been through customs?"}
        ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                         Open Liberty (Java 21)                           │
+│                         Open Liberty (Java 21)                          │
 │                                                                          │
-│  ┌────────────────┐     ┌────────────────────────────────────────┐       │
-│  │ AiRAGResource  │────▶│ AiRAGQueryService.query(question)      │       │
-│  │ (JAX-RS)       │     └───────────────┬────────────────────────┘       │
+│  ┌────────────────┐     ┌────────────────────────────────────────┐      │
+│  │ AiRAGResource  │────▶│ AiRAGQueryService.query(question)      │      │
+│  │ (JAX-RS)       │     └───────────────┬────────────────────────┘      │
 │  └────────────────┘                     │                                │
 │                                         │                                │
 │         ┌───────────────────────────────┘                                │
@@ -156,7 +156,7 @@ Result: N points stored (one per cargo + one per handling event)
 │  customs?"                       │
 │         │                        │
 │         ▼                        │
-│  [0.089, -0.201, 0.445, ...]     │
+│  [0.089, -0.201, 0.445, ...]    │
 │  (1,536 floats)                  │
 └───────────────┬──────────────────┘
                 │ query vector
@@ -166,8 +166,7 @@ Result: N points stored (one per cargo + one per handling event)
 │                                                                          │
 │         STEP 2: Search Qdrant for similar vectors                        │
 │                                                                          │
-│         embeddingStore.findRelevant(queryVector, maxResults=5,           │
-│           minScore=0.7)                                                  │
+│         embeddingStore.findRelevant(queryVector, maxResults=5, minScore=0.7)│
 │                                                                          │
 └─────────┬────────────────────────────────────────────────────────────────┘
           │
@@ -180,21 +179,21 @@ Result: N points stored (one per cargo + one per handling event)
 │  all N stored vectors using      │
 │  cosine similarity:              │
 │                                  │
-│  Point 12 (MNO456 CUSTOMS):      │
+│  Point 12 (MNO456 CUSTOMS):     │
 │    cosine similarity = 0.76  ✓   │
-│  Point 14 (MNO456 CLAIM):        │
+│  Point 14 (MNO456 CLAIM):       │
 │    cosine similarity = 0.75  ✓   │
-│  Point  4 (MNO456 cargo):        │
+│  Point  4 (MNO456 cargo):       │
 │    cosine similarity = 0.75  ✓   │
-│  Point  7 (JKL567 UNLOAD):       │
+│  Point  7 (JKL567 UNLOAD):      │
 │    cosine similarity = 0.74  ✓   │
-│  Point  1 (ABC123 cargo):        │
+│  Point  1 (ABC123 cargo):       │
 │    cosine similarity = 0.74  ✓   │
-│  Point  9 (ABC123 RECEIVE):      │
+│  Point  9 (ABC123 RECEIVE):     │
 │    cosine similarity = 0.68  ✗   │
 │    (below 0.7 threshold)         │
 │                                  │
-│  Returns top 5 matches ≥ 0.7     │
+│  Returns top 5 matches ≥ 0.7    │
 └───────────────┬──────────────────┘
                 │ 5 matching TextSegments
                 │ (original text + metadata + scores)
@@ -273,19 +272,19 @@ Result: N points stored (one per cargo + one per handling event)
 └─────────┬────────────────────────────────────────────────────────────────┘
           │
           ▼
-┌──────────────────────────────────┐
-│     User                         │
-│                                  │
-│  {                               │
-│    "answer": "Based on the       │
-│     provided context, cargo      │
-│     with tracking ID MNO456      │
-│     has been through customs.    │
-│     ...",                        │
-│    "sources": [...],             │
-│    "documentsRetrieved": 5       │
-│  }                               │
-└──────────────────────────────────┘
+┌──────────────┐
+│     User     │
+│              │
+│  {           │
+│    "answer": "Based on the      │
+│     provided context, cargo     │
+│     with tracking ID MNO456     │
+│     has been through customs.   │
+│     ...",                       │
+│    "sources": [...],            │
+│    "documentsRetrieved": 5      │
+│  }                              │
+└─────────────────────────────────┘
 ```
 
 ## Summary: Who Talks to Whom
